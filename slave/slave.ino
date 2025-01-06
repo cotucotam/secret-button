@@ -1,65 +1,8 @@
-// void setup() {
-//   Serial.begin(9600); // Dùng UART mặc định (TX = 1, RX = 0)
-//   Serial.println("RS485 Slave is ready");
-// }
-
-// void loop() {
-//   if (Serial.available()) {
-//     String received = Serial.readString();
-//     char data_rcvd = Serial.read();
-//     if(data_rcvd == "0"){
-//       Serial.print("Received: 0 ");
-//     }
-//     else{
-//       Serial.print("Received: 1 ");
-//     }
-//   }
-// }
-
-// #include <SoftwareSerial.h>
-
-// // RS485 chân
-// #define RX_PIN 10
-// #define TX_PIN 11
-// SoftwareSerial rs485Serial(RX_PIN, TX_PIN);
-
-// #define Relay 1
-
-// void setup() {
-//   Serial.begin(19200);       // Serial mặc định cho máy tính
-//   rs485Serial.begin(19200);  // SoftwareSerial cho RS485
-//   Serial.println("Slave Ready");
-
-//   pinMode(Relay, OUTPUT);
-//   digitalWrite(Relay, HIGH);
-// }
-
-// void loop() {
-//   // if (rs485Serial.available()) {
-//   //   String receivedData = rs485Serial.readString();
-//   //   Serial.println("Received: " + receivedData); // Hiển thị dữ liệu nhận được
-//   //   if(receivedData == "1"){
-
-//   //   }
-//   //   // Phản hồi lại Master
-//   //   // String response = "Ack: " + receivedData;
-//   //   // rs485Serial.println(response);
-//   //   // Serial.println("Sent: " + response);
-//   // }
-
-//   digitalWrite(Relay, LOW);
-//   Serial.println("on");
-//   delay(3000);
-//   digitalWrite(Relay, HIGH);
-//   Serial.println("off");
-//   delay(3000);
-
-// }
-
-
 #include "RS485.h"
 #include "Relay.h"
 #include "PinDefinitions.h"
+#include <Arduino_FreeRTOS.h>
+#include <semphr.h>
 
 // Tạo đối tượng RS485
 RS485 rs485(RX_PIN, TX_PIN, 19200);
@@ -73,12 +16,71 @@ int relayPins[NUM_RELAYS] = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4,
 // Mảng các đối tượng Relay
 Relay* relays[NUM_RELAYS];
 
+// Biến toàn cục Mutex để bảo vệ việc truy cập các relay
+SemaphoreHandle_t xMutex;
+
+
+int buttonValues[NUM_RELAYS]; // Mảng để lưu giá trị các N (0 hoặc 1)
+
 // Hàm setupRelays để quét mảng relayPins và khởi tạo các đối tượng Relay
 void setupRelays() {
     for (int i = 0; i < NUM_RELAYS; i++) {
         relays[i] = new Relay(relayPins[i], true); // Sử dụng `new` để khởi tạo đối tượng
         relays[i]->begin(); // Khởi tạo mỗi relay
         relays[i]->off();
+    }
+}
+
+// Hàm điều khiển một relay
+void RelayControlTask(void* pvParameters) {
+    int relayIndex = (int)pvParameters;  // Lấy chỉ số relay từ tham số truyền vào
+    
+    while (1) {
+        // Dùng Mutex để bảo vệ việc truy cập vào relay
+        if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
+            // Bật relay
+            if(buttonValues[relayIndex] == "1"){
+              relays[relayIndex]->on();
+              delay(1000); // Bật relay 1 giây
+            }
+            else if(buttonValues[relayIndex] == "0"){
+              // Tắt relay
+              relays[relayIndex]->off();
+            }
+            else{
+              // Tắt relay
+              relays[relayIndex]->off();
+            }
+
+            // Giải phóng Mutex sau khi hoàn tất việc điều khiển relay
+            xSemaphoreGive(xMutex);
+        }
+    }
+}
+
+// Hàm xử lý nhận dữ liệu từ RS485
+void RS485Task(void* pvParameters) {
+    while (1) {
+
+        String receivedData = rs485.receive();  // Nhận dữ liệu từ RS485
+
+        // Kiểm tra dữ liệu nhận được và điều khiển relay
+        if (receivedData.length() > 0) {
+            xSemaphoreTake(xMutex, portMAX_DELAY);  // Lấy Mutex trước khi điều khiển relay
+
+            RS485::parseData(receivedData, buttonValues);
+
+            if (receivedData == "1") {
+                relays[0]->on(); // Bật relay 0
+                Serial.println("Relay ON");
+            } else if (receivedData == "0") {
+                relays[0]->off(); // Tắt relay 0
+                Serial.println("Relay OFF");
+            }
+            xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
+        }
+        
+        vTaskDelay(100 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
     }
 }
 
@@ -89,37 +91,45 @@ void setup() {
     // Khởi tạo relay
     Serial.println("Relay initialized");
     setupRelays();
-    
-    
-
-    // // Bật relay trong 3 giây, sau đó tắt
-    // relay.on();
-    // Serial.println("Relay turned ON");
-    // delay(3000);
-
-    // relay.off();
-    // Serial.println("Relay turned OFF");
 
     Serial.println("Slave Ready");
+
+    // Khởi tạo Mutex
+    xMutex = xSemaphoreCreateMutex();
+
+    // Kiểm tra xem Mutex có được tạo thành công không
+    if (xMutex == NULL) {
+        Serial.println("Không thể tạo Mutex!");
+        while (1);  // Nếu không tạo được Mutex thì dừng chương trình
+    }
+
+        // Tạo task cho từng relay
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        xTaskCreate(
+            RelayControlTask,        // Hàm task
+            "RelayControlTask",      // Tên task
+            128,                     // Kích thước stack (có thể điều chỉnh)
+            (void*)i,                // Tham số truyền vào (chỉ số relay)
+            1,                       // Độ ưu tiên của task
+            NULL                     // Handle của task (không cần ở đây)
+        );
+    }
+
+    // Tạo task RS485
+    xTaskCreate(
+        RS485Task,               // Hàm task
+        "RS485Task",             // Tên task
+        128,                     // Kích thước stack (có thể điều chỉnh)
+        NULL,                    // Tham số truyền vào task
+        1,                       // Độ ưu tiên của task
+        NULL                     // Handle của task (không cần ở đây)
+    );
+    // Bắt đầu các task
+    vTaskStartScheduler();
+
 }
 
 void loop() {
-    // Nhận dữ liệu từ RS485
-    String receivedData = rs485.receive();
 
-    // Kiểm tra dữ liệu nhận được
-    if (receivedData.length() > 0) {
-        if (receivedData == "1") {
-            relays[0]->on(); 
-            Serial.println("Relay ON");
-        } else if (receivedData == "0") {
-            relays[0]->off();
-            Serial.println("Relay OFF");
-        }
-    }
-
-    // (Tùy chọn) Gửi phản hồi về Master
-    rs485.send("ACK: " + receivedData);
-    delay(100); // Để tránh giao tiếp quá nhanh
 }
 
