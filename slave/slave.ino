@@ -63,7 +63,7 @@ void RS485Task(void* pvParameters) {
     while (1) {
 
         String receivedData = rs485.receive();  // Nhận dữ liệu từ RS485
-
+        Serial.println("receivedData: "+ receivedData);
         // Kiểm tra dữ liệu nhận được và điều khiển relay
         if (receivedData.length() > 0) {
             xSemaphoreTake(xMutex, portMAX_DELAY);  // Lấy Mutex trước khi điều khiển relay
@@ -72,10 +72,10 @@ void RS485Task(void* pvParameters) {
 
             if (receivedData == "1") {
                 relays[0]->on(); // Bật relay 0
-                Serial.println("Relay ON");
+                //Serial.println("Relay ON");
             } else if (receivedData == "0") {
                 relays[0]->off(); // Tắt relay 0
-                Serial.println("Relay OFF");
+                //Serial.println("Relay OFF");
             }
             xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
         }
@@ -119,7 +119,7 @@ void setup() {
     xTaskCreate(
         RS485Task,               // Hàm task
         "RS485Task",             // Tên task
-        128,                     // Kích thước stack (có thể điều chỉnh)
+        256,                     // Kích thước stack (có thể điều chỉnh)
         NULL,                    // Tham số truyền vào task
         1,                       // Độ ưu tiên của task
         NULL                     // Handle của task (không cần ở đây)

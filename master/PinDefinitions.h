@@ -1,6 +1,8 @@
 #ifndef PINDEFINITIONS_H
 #define PINDEFINITIONS_H
 
+#include <Arduino.h>
+
 // Các chân điều khiển relay (20 chân)
 #define RELAY_PIN_1 A1
 #define RELAY_PIN_2 23
@@ -32,6 +34,5 @@ extern int relayPins[NUM_RELAYS];
 // Các chân giao tiếp (Serial)
 #define RX_PIN 10
 #define TX_PIN 11
-
 
 #endif
