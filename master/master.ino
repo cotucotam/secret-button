@@ -23,6 +23,9 @@ SemaphoreHandle_t xMutex;
 // Mảng lưu trạng thái nút nhấn
 bool buttonStates[NUM_BUTTONS] = {false};
 
+// Mảng lưu trạng thái nút nhấn đã được nhấn
+bool saveStates[NUM_BUTTONS] = {false};
+
 // Task handle cho việc đọc trạng thái nút nhấn
 TaskHandle_t buttonTaskHandle;
 
@@ -39,18 +42,53 @@ void readButtonStates(bool* buttonStates) {
     }
 }
 
+// Hàm cập nhật saveStates dựa trên buttonStates
+void updateRelayValues(bool* saveStates, bool* buttonStates, int numButtons) {
+    for (int i = 0; i < numButtons; i++) {
+        if (buttonStates[i] == 1) {
+            saveStates[i] = 1; // Cập nhật relayValues khi buttonValues = 1
+        }
+    }
+}
+
+void resetSaveStates(bool* saveStates, int size) {
+    for (int i = 0; i < size; i++) {
+        saveStates[i] = 0;
+    }
+}
+
 void buttonTask(void* pvParameters) {
     while (1) {
         if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
             // Đọc trạng thái các nút nhấn
             readButtonStates(buttonStates);
-
+            updateRelayValues(saveStates, buttonStates, NUM_BUTTONS);
             // Trả lại mutex
             xSemaphoreGive(xMutex);
         }
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
+
+String buildDataToSend(int slaveId, bool* saveStates, int numButtons) {
+    String dataToSend = "S" + String(slaveId); // Thêm S + SLAVE_ID vào chuỗi
+
+    for (int i = 0; i < numButtons; i++) {
+        // Tạo số thứ tự nút có định dạng 2 chữ số
+        String buttonIndex = String(i + 1);
+        if (buttonIndex.length() < 2) {
+            buttonIndex = "0" + buttonIndex; // Thêm số 0 nếu cần
+        }
+
+        // Thêm trạng thái nút vào chuỗi
+        String buttonData = "-B" + buttonIndex + ":" + String(saveStates[i]);
+        dataToSend += buttonData;
+    }
+
+    return dataToSend;
+}
+
+
 // S1-B01:1-B02:0
 
 void rs485Task(void* pvParameters) {
@@ -58,32 +96,27 @@ void rs485Task(void* pvParameters) {
     while (1) {
         if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
 
-          // Tạo chuỗi dataToSend
-          String dataToSend = "S" + String(SLAVE_ID); // Thêm S + SLAVE_ID vào chuỗi
+            // Gọi hàm buildDataToSend để tạo chuỗi dữ liệu
+            String dataToSend = buildDataToSend(SLAVE_ID, saveStates, NUM_BUTTONS);
 
-          for (int i = 0; i < NUM_BUTTONS; i++) {
-              // Tạo số thứ tự nút có định dạng 2 chữ số
-              String buttonIndex = String(i + 1);
-              if (buttonIndex.length() < 2) {
-                  buttonIndex = "0" + buttonIndex; // Thêm số 0 nếu cần
+            // Gửi dữ liệu qua Serial hoặc RS485
+            Serial.println("Data to send: " + dataToSend);
+            rs485.send(dataToSend);
+
+            // Nhận dữ liệu từ RS485
+            String receivedData = rs485.receive();  
+            if (receivedData.length() > 0) {
+
+              Serial.println("receivedData: "+ receivedData);
+
+              if(receivedData == "reset"){
+                resetSaveStates(saveStates, NUM_BUTTONS);
               }
-
-              // Thêm trạng thái nút vào chuỗi
-              String buttonData = "-B" + buttonIndex + ":" + String(buttonStates[i]);
-              dataToSend += buttonData;
-
-
+              
             }
-              // Gửi dữ liệu qua Serial hoặc RS485
-              // Serial.println("Data to send: " + dataToSend);
-              //dataToSend = "1";
-               Serial.println("Data to send: " + dataToSend);
-              rs485.send(dataToSend);
-              count ++;
-               Serial.println(count);
 
-              // Trả lại mutex
-              xSemaphoreGive(xMutex);
+            // Trả lại mutex
+            xSemaphoreGive(xMutex);
           
           vTaskDelay(1000 / portTICK_PERIOD_MS); 
         }

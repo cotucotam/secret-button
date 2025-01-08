@@ -3,7 +3,7 @@
 #include "PinDefinitions.h"
 #include <Arduino_FreeRTOS.h>
 #include <semphr.h>
-
+#include "Button.h"
 // Tạo đối tượng RS485
 RS485 rs485(RX_PIN, TX_PIN, 9600);
 
@@ -16,11 +16,17 @@ int relayPins[NUM_RELAYS] = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4,
 // Mảng các đối tượng Relay
 Relay* relays[NUM_RELAYS];
 
+// reset button
+Button resetButton(RESET_BUTTON_PIN_20, true); // Nút trên chân 42, activeLow
+
 // Biến toàn cục Mutex để bảo vệ việc truy cập các relay
 SemaphoreHandle_t xMutex;
 
 
 int buttonValues[NUM_RELAYS]; // Mảng để lưu giá trị các N (0 hoặc 1)
+
+// Mảng lưu giá trị trạng thái của relay (ban đầu mặc định = 0)
+int relayValues[NUM_RELAYS] = {0};
 
 // Hàm setupRelays để quét mảng relayPins và khởi tạo các đối tượng Relay
 void setupRelays() {
@@ -39,11 +45,11 @@ void RelayControlTask(void* pvParameters) {
         // Dùng Mutex để bảo vệ việc truy cập vào relay
         if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
             // Bật relay
-            if(buttonValues[relayIndex] == "1"){
+            if(relayValues[relayIndex] == "1"){
               relays[relayIndex]->on();
               delay(1000); // Bật relay 1 giây
             }
-            else if(buttonValues[relayIndex] == "0"){
+            else if(relayValues[relayIndex] == "0"){
               // Tắt relay
               relays[relayIndex]->off();
             }
@@ -54,6 +60,16 @@ void RelayControlTask(void* pvParameters) {
 
             // Giải phóng Mutex sau khi hoàn tất việc điều khiển relay
             xSemaphoreGive(xMutex);
+        }
+        vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms
+    }
+}
+
+// Hàm cập nhật relayValues dựa trên buttonValues
+void updateRelayValues(int* buttonValues, int* relayValues, int numRelays) {
+    for (int i = 0; i < numRelays; i++) {
+        if (buttonValues[i] == 1) {
+            relayValues[i] = 1; // Cập nhật relayValues khi buttonValues = 1
         }
     }
 }
@@ -71,20 +87,40 @@ void RS485Task(void* pvParameters) {
 
             Serial.println("receivedData: "+ receivedData);
             
-            // RS485::parseData(receivedData, buttonValues);
+            RS485::parseData(receivedData, buttonValues);
 
-            // if (receivedData == "1") {
-            //     relays[0]->on(); // Bật relay 0
-            //     //Serial.println("Relay ON");
-            // } else if (receivedData == "0") {
-            //     relays[0]->off(); // Tắt relay 0
-            //     //Serial.println("Relay OFF");
-            // }
+            // Gọi hàm cập nhật relayValues sau khi parse xong
+            updateRelayValues(buttonValues, relayValues, NUM_RELAYS);
 
             xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
         }
         
         vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+    }
+}
+
+void resetRelayValues(int* relayValues, int size) {
+    for (int i = 0; i < size; i++) {
+        relayValues[i] = 0;
+    }
+}
+
+void resetButtonTask(void* pvParameters) {
+    while (1) {
+        if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
+            // Đọc trạng thái các nút nhấn
+            if(resetButton.isPressed()){
+                // Reset tất cả giá trị về 0
+                rs485.send("reset");
+                vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+                rs485.send("reset");
+                resetRelayValues(relayValues, NUM_RELAYS);
+            }
+
+            // Trả lại mutex
+            xSemaphoreGive(xMutex);
+        }
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
@@ -98,6 +134,7 @@ void setup() {
 
     Serial.println("Slave Ready");
 
+    resetButton.begin();
     // Khởi tạo Mutex
     xMutex = xSemaphoreCreateMutex();
 
@@ -107,23 +144,33 @@ void setup() {
         while (1);  // Nếu không tạo được Mutex thì dừng chương trình
     }
 
-        // Tạo task cho từng relay
-    // for (int i = 0; i < NUM_RELAYS; i++) {
-    //     xTaskCreate(
-    //         RelayControlTask,        // Hàm task
-    //         "RelayControlTask",      // Tên task
-    //         128,                     // Kích thước stack (có thể điều chỉnh)
-    //         (void*)i,                // Tham số truyền vào (chỉ số relay)
-    //         1,                       // Độ ưu tiên của task
-    //         NULL                     // Handle của task (không cần ở đây)
-    //     );
-    // }
+    // Tạo task cho từng relay
+    for (int i = 0; i < NUM_RELAYS; i++) {
+        xTaskCreate(
+            RelayControlTask,        // Hàm task
+            "RelayControlTask",      // Tên task
+            128,                     // Kích thước stack (có thể điều chỉnh)
+            (void*)i,                // Tham số truyền vào (chỉ số relay)
+            1,                       // Độ ưu tiên của task
+            NULL                     // Handle của task (không cần ở đây)
+        );
+    }
 
     // Tạo task RS485
     xTaskCreate(
         RS485Task,               // Hàm task
         "RS485Task",             // Tên task
         256,                     // Kích thước stack (có thể điều chỉnh)
+        NULL,                    // Tham số truyền vào task
+        1,                       // Độ ưu tiên của task
+        NULL                     // Handle của task (không cần ở đây)
+    );
+  
+    // Tạo task resetButton
+    xTaskCreate(
+        resetButtonTask,               // Hàm task
+        "resetButtonTask",             // Tên task
+        128,                     // Kích thước stack (có thể điều chỉnh)
         NULL,                    // Tham số truyền vào task
         1,                       // Độ ưu tiên của task
         NULL                     // Handle của task (không cần ở đây)

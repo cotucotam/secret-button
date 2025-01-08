@@ -26,6 +26,12 @@
 // Số lượng relay
 #define NUM_RELAYS 20
 
+// Số lượng relay
+#define NUM_BUTTONS 20
+
+// Reset button
+#define RESET_BUTTON_PIN_20 42
+
 // Khai báo mảng relayPins mà không khởi tạo
 extern int relayPins[NUM_RELAYS];
 
