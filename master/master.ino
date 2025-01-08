@@ -6,7 +6,7 @@
 #include <semphr.h>
 
 // Tạo đối tượng RS485
-RS485 rs485(RX_PIN, TX_PIN, 19200);
+RS485 rs485(RX_PIN, TX_PIN, 9600);
 
 // Khởi tạo mảng buttonPins
 int buttonPins[NUM_BUTTONS] = {BUTTON_PIN_1, BUTTON_PIN_2, BUTTON_PIN_3, BUTTON_PIN_4, BUTTON_PIN_5,
@@ -52,7 +52,9 @@ void buttonTask(void* pvParameters) {
     }
 }
 // S1-B01:1-B02:0
+
 void rs485Task(void* pvParameters) {
+  int count = 0;
     while (1) {
         if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
 
@@ -73,11 +75,17 @@ void rs485Task(void* pvParameters) {
 
             }
               // Gửi dữ liệu qua Serial hoặc RS485
-              Serial.println("Data to send: " + dataToSend);
+              // Serial.println("Data to send: " + dataToSend);
+              //dataToSend = "1";
+               Serial.println("Data to send: " + dataToSend);
+              rs485.send(dataToSend);
+              count ++;
+               Serial.println(count);
+
               // Trả lại mutex
               xSemaphoreGive(xMutex);
           
-          vTaskDelay(100 / portTICK_PERIOD_MS); 
+          vTaskDelay(1000 / portTICK_PERIOD_MS); 
         }
       }
 }

@@ -5,7 +5,7 @@
 #include <semphr.h>
 
 // Tạo đối tượng RS485
-RS485 rs485(RX_PIN, TX_PIN, 19200);
+RS485 rs485(RX_PIN, TX_PIN, 9600);
 
 // Khởi tạo mảng relayPins
 int relayPins[NUM_RELAYS] = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4, RELAY_PIN_5,
@@ -63,6 +63,7 @@ void RS485Task(void* pvParameters) {
     while (1) {
 
         String receivedData = rs485.receive();  // Nhận dữ liệu từ RS485
+        // Serial.println("receivedData: "+ receivedData);
         
         // Kiểm tra dữ liệu nhận được và điều khiển relay
         if (receivedData.length() > 0) {
@@ -83,7 +84,7 @@ void RS485Task(void* pvParameters) {
             xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
         }
         
-        vTaskDelay(100 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+        vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
     }
 }
 
