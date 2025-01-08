@@ -63,20 +63,23 @@ void RS485Task(void* pvParameters) {
     while (1) {
 
         String receivedData = rs485.receive();  // Nhận dữ liệu từ RS485
-        Serial.println("receivedData: "+ receivedData);
+        
         // Kiểm tra dữ liệu nhận được và điều khiển relay
         if (receivedData.length() > 0) {
             xSemaphoreTake(xMutex, portMAX_DELAY);  // Lấy Mutex trước khi điều khiển relay
 
-            RS485::parseData(receivedData, buttonValues);
+            Serial.println("receivedData: "+ receivedData);
+            
+            // RS485::parseData(receivedData, buttonValues);
 
-            if (receivedData == "1") {
-                relays[0]->on(); // Bật relay 0
-                //Serial.println("Relay ON");
-            } else if (receivedData == "0") {
-                relays[0]->off(); // Tắt relay 0
-                //Serial.println("Relay OFF");
-            }
+            // if (receivedData == "1") {
+            //     relays[0]->on(); // Bật relay 0
+            //     //Serial.println("Relay ON");
+            // } else if (receivedData == "0") {
+            //     relays[0]->off(); // Tắt relay 0
+            //     //Serial.println("Relay OFF");
+            // }
+
             xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
         }
         
@@ -104,16 +107,16 @@ void setup() {
     }
 
         // Tạo task cho từng relay
-    for (int i = 0; i < NUM_RELAYS; i++) {
-        xTaskCreate(
-            RelayControlTask,        // Hàm task
-            "RelayControlTask",      // Tên task
-            128,                     // Kích thước stack (có thể điều chỉnh)
-            (void*)i,                // Tham số truyền vào (chỉ số relay)
-            1,                       // Độ ưu tiên của task
-            NULL                     // Handle của task (không cần ở đây)
-        );
-    }
+    // for (int i = 0; i < NUM_RELAYS; i++) {
+    //     xTaskCreate(
+    //         RelayControlTask,        // Hàm task
+    //         "RelayControlTask",      // Tên task
+    //         128,                     // Kích thước stack (có thể điều chỉnh)
+    //         (void*)i,                // Tham số truyền vào (chỉ số relay)
+    //         1,                       // Độ ưu tiên của task
+    //         NULL                     // Handle của task (không cần ở đây)
+    //     );
+    // }
 
     // Tạo task RS485
     xTaskCreate(

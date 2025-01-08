@@ -3,19 +3,20 @@
 
 #include <Arduino.h>
 #include <SoftwareSerial.h>
+#include "PinDefinitions.h"
 
 class RS485 {
 private:
-    SoftwareSerial rs485Serial; // Đối tượng SoftwareSerial
-    int rxPin;
-    int txPin;
-    int baudRate;
+    int rxPin;              // Chân RX
+    int txPin;              // Chân TX
+    int baudRate;           // Tốc độ truyền
+    SoftwareSerial rs485Serial; // Giao tiếp RS485
 
 public:
     // Constructor
     RS485(int rx, int tx, int baud);
 
-    // Khởi tạo RS485
+    // Khởi tạo giao tiếp RS485
     void begin();
 
     // Gửi dữ liệu qua RS485
@@ -24,7 +25,8 @@ public:
     // Nhận dữ liệu qua RS485
     String receive();
 
-    static void parseData(String data, int* buttonValues);
+    // Phân tích dữ liệu nhận được
+    void parseData(String data, int* buttonValues);
 };
 
 #endif
