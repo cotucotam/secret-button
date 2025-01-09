@@ -97,6 +97,12 @@ void rs485Task(void* pvParameters) {
         if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
 
             // Gọi hàm buildDataToSend để tạo chuỗi dữ liệu
+
+            String dataToSend_test = buildDataToSend(SLAVE_ID, buttonStates, NUM_BUTTONS);
+
+            // Gửi dữ liệu qua Serial hoặc RS485
+            Serial.println("Data to  test: " + dataToSend_test);
+
             String dataToSend = buildDataToSend(SLAVE_ID, saveStates, NUM_BUTTONS);
 
             // Gửi dữ liệu qua Serial hoặc RS485
@@ -104,13 +110,22 @@ void rs485Task(void* pvParameters) {
             rs485.send(dataToSend);
 
             // Nhận dữ liệu từ RS485
-            String receivedData = rs485.receive();  
+            String receivedData = rs485.receive(); 
+
             if (receivedData.length() > 0) {
+              Serial.println("receivedData:" +receivedData);
+              // Serial.println(" ASCII: "+int(receivedData.charAt(0)));
+              // Serial.println("receivedData: "+ String(bool(receivedData == "1")));
+              // Serial.println("false: "+ String(false));
+              Serial.println(int(receivedData.charAt(0)));
 
-              Serial.println("receivedData: "+ receivedData);
+              if(int(receivedData.charAt(0)) == RESET_VALUE){
+                
 
-              if(receivedData == "reset"){
                 resetSaveStates(saveStates, NUM_BUTTONS);
+                Serial.println("reset");
+              }else{
+                Serial.println("not reset");
               }
               
             }

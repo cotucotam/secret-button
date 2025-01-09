@@ -2,7 +2,7 @@
 #define PINDEFINITIONS_H
 
 // Các chân điều khiển relay (20 chân)
-#define RELAY_PIN_1 A1
+#define RELAY_PIN_1 22
 #define RELAY_PIN_2 23
 #define RELAY_PIN_3 24
 #define RELAY_PIN_4 25
@@ -30,7 +30,10 @@
 #define NUM_BUTTONS 20
 
 // Reset button
-#define RESET_BUTTON_PIN_20 42
+#define RESET_BUTTON_PIN A1
+
+// Reset value 
+#define RESET_VALUE '1'  // Mã ASCII của "1" là 49
 
 // Khai báo mảng relayPins mà không khởi tạo
 extern int relayPins[NUM_RELAYS];

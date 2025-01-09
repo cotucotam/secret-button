@@ -8,7 +8,7 @@ void Button::begin() {
 
 bool Button::isPressed() {
     bool currentState = digitalRead(pin);
-    return activeLow ? (currentState == LOW) : (currentState == HIGH);
+    return activeLow ? (currentState == HIGH) : (currentState == LOW);
 }
 
 bool Button::stateChanged() {
