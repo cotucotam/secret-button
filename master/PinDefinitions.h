@@ -38,6 +38,7 @@ extern int buttonPins[NUM_BUTTONS];
 #define TX_PIN 11
 
 // Reset value 
-#define RESET_VALUE 49  // Mã ASCII của "1" là 49
+#define RESET_VALUE_RX 49  // Mã ASCII của "1" là 49
+#define RESET_VALUE_TX "1"  // Mã ASCII của "1" là 49
 
 #endif

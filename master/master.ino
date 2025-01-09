@@ -101,12 +101,12 @@ void rs485Task(void* pvParameters) {
             String dataToSend_test = buildDataToSend(SLAVE_ID, buttonStates, NUM_BUTTONS);
 
             // Gửi dữ liệu qua Serial hoặc RS485
-            Serial.println("Data to  test: " + dataToSend_test);
+            // Serial.println("Data to  test: " + dataToSend_test);
 
             String dataToSend = buildDataToSend(SLAVE_ID, saveStates, NUM_BUTTONS);
 
             // Gửi dữ liệu qua Serial hoặc RS485
-            Serial.println("Data to send: " + dataToSend);
+            // Serial.println("Data to send: " + dataToSend);
             rs485.send(dataToSend);
 
             // Nhận dữ liệu từ RS485
@@ -119,13 +119,23 @@ void rs485Task(void* pvParameters) {
               // Serial.println("false: "+ String(false));
               Serial.println(int(receivedData.charAt(0)));
 
-              if(int(receivedData.charAt(0)) == RESET_VALUE){
+              if(int(receivedData.charAt(0)) == RESET_VALUE_RX){
                 
 
                 resetSaveStates(saveStates, NUM_BUTTONS);
+                resetSaveStates(buttonStates, NUM_BUTTONS);
+                rs485.send(RESET_VALUE_TX);
+                vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+                rs485.send(RESET_VALUE_TX);
+                vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+                rs485.send(RESET_VALUE_TX);
+                vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+                rs485.send(RESET_VALUE_TX);
                 Serial.println("reset");
-              }else{
-                Serial.println("not reset");
+                dataToSend = buildDataToSend(SLAVE_ID, saveStates, NUM_BUTTONS);
+                Serial.println("Data to  test: " + dataToSend);
+                dataToSend_test = buildDataToSend(SLAVE_ID, buttonStates, NUM_BUTTONS);
+                Serial.println("Data to  test: " + dataToSend_test);
               }
               
             }

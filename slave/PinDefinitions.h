@@ -33,7 +33,8 @@
 #define RESET_BUTTON_PIN A1
 
 // Reset value 
-#define RESET_VALUE '1'  // Mã ASCII của "1" là 49
+#define RESET_VALUE_RX 49  // Mã ASCII của "1" là 49
+#define RESET_VALUE_TX "1"  // Mã ASCII của "1" là 49
 
 // Khai báo mảng relayPins mà không khởi tạo
 extern int relayPins[NUM_RELAYS];
