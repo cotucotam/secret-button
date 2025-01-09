@@ -24,7 +24,7 @@ public:
     // Nhận dữ liệu qua RS485
     String receive();
 
-    static void parseData(String data, int* buttonValues);
+    static void parseData(String data, int &slaveID, int* buttonValues);
 };
 
 #endif

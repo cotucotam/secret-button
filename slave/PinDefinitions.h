@@ -1,6 +1,12 @@
 #ifndef PINDEFINITIONS_H
 #define PINDEFINITIONS_H
 
+#define SLAVE_1_START_RELAY 0   // Relay bắt đầu cho Slave 1
+#define SLAVE_1_END_RELAY 9     // Relay kết thúc cho Slave 1
+
+#define SLAVE_2_START_RELAY 10  // Relay bắt đầu cho Slave 2
+#define SLAVE_2_END_RELAY 19    // Relay kết thúc cho Slave 2
+
 // Các chân điều khiển relay (20 chân)
 #define RELAY_PIN_1 22
 #define RELAY_PIN_2 23
@@ -23,6 +29,9 @@
 #define RELAY_PIN_19 40
 #define RELAY_PIN_20 41
 
+#define RELAY_ON_VALUE 1
+#define RELAY_OFF_VALUE 0
+
 // Số lượng relay
 #define NUM_RELAYS 20
 
@@ -33,7 +42,7 @@
 #define RESET_BUTTON_PIN A1
 
 // Reset value 
-#define RESET_VALUE_RX 49  // Mã ASCII của "1" là 49
+#define RESET_VALUE_RX 1  // Mã ASCII của "1" là 49
 #define RESET_VALUE_TX "1"  // Mã ASCII của "1" là 49
 
 // Khai báo mảng relayPins mà không khởi tạo

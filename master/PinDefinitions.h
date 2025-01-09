@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#define SLAVE_ID 0
+#define SLAVE_ID 1
 
 // Các chân điều khiển BUTTON (20 chân)
 #define BUTTON_PIN_1 A1

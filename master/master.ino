@@ -113,10 +113,8 @@ void rs485Task(void* pvParameters) {
             String receivedData = rs485.receive(); 
 
             if (receivedData.length() > 0) {
+              vTaskDelay(1000 / portTICK_PERIOD_MS); 
               Serial.println("receivedData:" +receivedData);
-              // Serial.println(" ASCII: "+int(receivedData.charAt(0)));
-              // Serial.println("receivedData: "+ String(bool(receivedData == "1")));
-              // Serial.println("false: "+ String(false));
               Serial.println(int(receivedData.charAt(0)));
 
               if(int(receivedData.charAt(0)) == RESET_VALUE_RX){
@@ -124,13 +122,14 @@ void rs485Task(void* pvParameters) {
 
                 resetSaveStates(saveStates, NUM_BUTTONS);
                 resetSaveStates(buttonStates, NUM_BUTTONS);
-                rs485.send(RESET_VALUE_TX);
+                dataToSend = "S"+ String(SLAVE_ID)+":"+RESET_VALUE_TX;
+                rs485.send(dataToSend);
                 vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
-                rs485.send(RESET_VALUE_TX);
+                rs485.send(dataToSend);
                 vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
-                rs485.send(RESET_VALUE_TX);
+                rs485.send(dataToSend);
                 vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
-                rs485.send(RESET_VALUE_TX);
+                rs485.send(dataToSend);
                 Serial.println("reset");
                 dataToSend = buildDataToSend(SLAVE_ID, saveStates, NUM_BUTTONS);
                 Serial.println("Data to  test: " + dataToSend);

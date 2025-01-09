@@ -61,12 +61,12 @@ void RelayControlTask(void* pvParameters) {
         // Dùng Mutex để bảo vệ việc truy cập vào relay
         if (xSemaphoreTake(xMutex, portMAX_DELAY)) {
             // Bật relay
-            if(relayValues[relayIndex] == 1){
+            if(relayValues[relayIndex] == RELAY_ON_VALUE){
 
               relays[relayIndex]->on();
               // delay(100); // Bật relay 1 giây
             }
-            else if(relayValues[relayIndex] == 0){
+            else if(relayValues[relayIndex] == RELAY_OFF_VALUE){
               // Tắt relay
               relays[relayIndex]->off();
             }
@@ -82,10 +82,11 @@ void RelayControlTask(void* pvParameters) {
     }
 }
 
-// Hàm cập nhật relayValues dựa trên buttonValues
-void updateRelayValues(int* buttonValues, int* relayValues, int numRelays) {
-    for (int i = 0; i < numRelays; i++) {
-        if (buttonValues[i] == 1) {
+// Hàm cập nhật relayValues dựa trên buttonValues và vị trí startRelay, endRelay
+void updateRelayValues(int* buttonValues, int* relayValues, int startRelay, int endRelay) {
+    for (int i = startRelay; i <= endRelay; i++) {
+        int buttonIndex = i - startRelay; // Tính chỉ số tương ứng trong buttonValues
+        if (buttonValues[buttonIndex] == 1) {
             relayValues[i] = 1; // Cập nhật relayValues khi buttonValues = 1
         }
     }
@@ -101,17 +102,48 @@ void RS485Task(void* pvParameters) {
         // Kiểm tra dữ liệu nhận được và điều khiển relay
         if (receivedData.length() > 0) {
             xSemaphoreTake(xMutex, portMAX_DELAY);  // Lấy Mutex trước khi điều khiển relay
+            if(receivedData.length() < 10){
+            //if(int(receivedData.charAt(0)) == RESET_VALUE_RX){
 
-            if(int(receivedData.charAt(0)) == RESET_VALUE_RX){
+              int slaveID = receivedData.substring(1, 2).toInt();  // Lấy ký tự thứ 2 (sau 'S') và chuyển thành số
+
+              // Tìm dấu ':' và lấy giá trị phía sau
+              int colonIndex = receivedData.indexOf(":");
+              int commandValue = receivedData.substring(colonIndex + 1).toInt();  // Lấy phần phía sau dấu ':'
+
               Serial.println("receivedData: "+ receivedData);
-              resetRelayValues(relayValues, NUM_RELAYS);
+              int startRelay = 0;
+              int endRelay = 0;
+              if(commandValue == RESET_VALUE_RX){
+                if(slaveID == 1){
+                  startRelay = SLAVE_1_START_RELAY;
+                  endRelay = SLAVE_1_END_RELAY;
+                  resetRelayValues(relayValues, startRelay, endRelay);
+                }
+                else if(slaveID == 2){
+                  startRelay = SLAVE_2_START_RELAY;
+                  endRelay = SLAVE_2_END_RELAY;
+                  resetRelayValues(relayValues, startRelay, endRelay);
+                }    
+              }
             } else{
-              RS485::parseData(receivedData, buttonValues);
+              int startRelay = 0;
+              int endRelay = 0;
+              int slaveID = 0;
+              RS485::parseData(receivedData, slaveID, buttonValues);
 
               // Gọi hàm cập nhật relayValues sau khi parse xong
-              updateRelayValues(buttonValues, relayValues, NUM_RELAYS);
-            }
+                if(slaveID == 1){
+                  startRelay = SLAVE_1_START_RELAY;
+                  endRelay = SLAVE_1_END_RELAY;
+                }
+                else if(slaveID == 2){
+                  startRelay = SLAVE_2_START_RELAY;
+                  endRelay = SLAVE_2_END_RELAY;
+                }
 
+              updateRelayValues(buttonValues, relayValues, startRelay, endRelay);
+            }
 
             xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
         }
@@ -120,8 +152,8 @@ void RS485Task(void* pvParameters) {
     }
 }
 
-void resetRelayValues(int* relayValues, int size) {
-    for (int i = 0; i < size; i++) {
+void resetRelayValues(int* relayValues, int startRelay, int endRelay) {
+    for (int i = startRelay; i <= endRelay; i++) {
         relayValues[i] = 0;
     }
 }

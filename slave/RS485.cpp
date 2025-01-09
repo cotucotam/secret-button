@@ -31,10 +31,9 @@ String RS485::receive() {
     return data;
 }
 
-void RS485::parseData(String data, int* buttonValues) {
-    // Tách tiền tố S1
-    String prefix = data.substring(0, data.indexOf("-")); // Lấy phần "S1"
-    // Serial.println("Prefix: " + prefix);                 // Debug để in tiền tố
+void RS485::parseData(String data, int &slaveID, int* buttonValues) {
+    // Tách slaveID
+    slaveID = data.substring(1, data.indexOf("-")).toInt(); // Lấy số sau "S"
 
     // Bắt đầu xử lý từ sau tiền tố
     int startIndex = data.indexOf("-") + 1; // Vị trí bắt đầu của "B01"
