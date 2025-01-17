@@ -39,7 +39,7 @@
 #define NUM_BUTTONS 20
 
 // Reset button
-#define RESET_BUTTON_PIN A1
+#define RESET_BUTTON_PIN A2
 
 // Reset value 
 #define RESET_VALUE_RX 1  // Mã ASCII của "1" là 49
@@ -49,8 +49,10 @@
 extern int relayPins[NUM_RELAYS];
 
 // Các chân giao tiếp (Serial)
-#define RX_PIN 10
-#define TX_PIN 11
+#define RX_PIN_S1 12
+#define TX_PIN_S1 13
 
+#define RX_PIN_S2 10
+#define TX_PIN_S2 11
 
 #endif

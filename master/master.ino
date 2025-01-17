@@ -6,13 +6,12 @@
 #include <semphr.h>
 
 // Tạo đối tượng RS485
-RS485 rs485(RX_PIN, TX_PIN, 9600);
+RS485 rs485(RX_PIN, TX_PIN, 4800);
 
 // Khởi tạo mảng buttonPins
 int buttonPins[NUM_BUTTONS] = {BUTTON_PIN_1, BUTTON_PIN_2, BUTTON_PIN_3, BUTTON_PIN_4, BUTTON_PIN_5,
                              BUTTON_PIN_6, BUTTON_PIN_7, BUTTON_PIN_8, BUTTON_PIN_9, BUTTON_PIN_10,
-                             BUTTON_PIN_11, BUTTON_PIN_12, BUTTON_PIN_13, BUTTON_PIN_14, BUTTON_PIN_15,
-                             BUTTON_PIN_16, BUTTON_PIN_17, BUTTON_PIN_18, BUTTON_PIN_19, BUTTON_PIN_20};
+                             BUTTON_PIN_11};
 
 // Mảng các đối tượng Relay
 Button* buttons[NUM_BUTTONS];
@@ -81,10 +80,10 @@ String buildDataToSend(int slaveId, bool* saveStates, int numButtons) {
         }
 
         // Thêm trạng thái nút vào chuỗi
-        String buttonData = "-B" + buttonIndex + ":" + String(saveStates[i]);
+        String buttonData = "B" + buttonIndex + ":" + String(saveStates[i]);
         dataToSend += buttonData;
     }
-
+    dataToSend += "aa";
     return dataToSend;
 }
 
@@ -106,7 +105,7 @@ void rs485Task(void* pvParameters) {
             String dataToSend = buildDataToSend(SLAVE_ID, saveStates, NUM_BUTTONS);
 
             // Gửi dữ liệu qua Serial hoặc RS485
-            // Serial.println("Data to send: " + dataToSend);
+            Serial.println("Data to send: " + dataToSend);
             rs485.send(dataToSend);
 
             // Nhận dữ liệu từ RS485
@@ -142,7 +141,7 @@ void rs485Task(void* pvParameters) {
             // Trả lại mutex
             xSemaphoreGive(xMutex);
           
-          vTaskDelay(1000 / portTICK_PERIOD_MS); 
+          vTaskDelay(2000 / portTICK_PERIOD_MS); 
         }
       }
 }
@@ -186,7 +185,7 @@ void setup() {
   );
 
   // Bắt đầu các task
-  vTaskStartScheduler();
+ vTaskStartScheduler();
 
   Serial.println("Master Ready");
 }

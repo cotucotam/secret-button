@@ -26,7 +26,7 @@ String RS485::receive() {
     if (rs485Serial.available()) {
         data = rs485Serial.readString();
 
-        // Serial.println("Received via RS485: " + data);
+        Serial.println("Received via RS485: " + data);
     }
     return data;
 }

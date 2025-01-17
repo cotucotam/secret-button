@@ -5,8 +5,8 @@
 #include <semphr.h>
 #include "Button.h"
 // Tạo đối tượng RS485
-RS485 rs485(RX_PIN, TX_PIN, 9600);
-
+RS485 rs485_s1(RX_PIN_S1, TX_PIN_S1, 4800);
+RS485 rs485_s2(RX_PIN_S2, TX_PIN_S2, 4800);
 // Khởi tạo mảng relayPins
 int relayPins[NUM_RELAYS] = {RELAY_PIN_1, RELAY_PIN_2, RELAY_PIN_3, RELAY_PIN_4, RELAY_PIN_5,
                              RELAY_PIN_6, RELAY_PIN_7, RELAY_PIN_8, RELAY_PIN_9, RELAY_PIN_10,
@@ -93,10 +93,69 @@ void updateRelayValues(int* buttonValues, int* relayValues, int startRelay, int 
 }
 
 // Hàm xử lý nhận dữ liệu từ RS485
-void RS485Task(void* pvParameters) {
+void RS485Task_s1(void* pvParameters) {
     while (1) {
 
-        String receivedData = rs485.receive();  // Nhận dữ liệu từ RS485
+        String receivedData = rs485_s1.receive();  // Nhận dữ liệu từ RS485
+        // Serial.println("receivedData: "+ receivedData);
+        
+        // Kiểm tra dữ liệu nhận được và điều khiển relay
+        if (receivedData.length() > 0) {
+            xSemaphoreTake(xMutex, portMAX_DELAY);  // Lấy Mutex trước khi điều khiển relay
+            if(receivedData.length() < 10){
+            //if(int(receivedData.charAt(0)) == RESET_VALUE_RX){
+
+              int slaveID = receivedData.substring(1, 2).toInt();  // Lấy ký tự thứ 2 (sau 'S') và chuyển thành số
+
+              // Tìm dấu ':' và lấy giá trị phía sau
+              int colonIndex = receivedData.indexOf(":");
+              int commandValue = receivedData.substring(colonIndex + 1).toInt();  // Lấy phần phía sau dấu ':'
+
+              Serial.println("receivedData: "+ receivedData);
+              int startRelay = 0;
+              int endRelay = 0;
+              if(commandValue == RESET_VALUE_RX){
+                if(slaveID == 1){
+                  startRelay = SLAVE_1_START_RELAY;
+                  endRelay = SLAVE_1_END_RELAY;
+                  resetRelayValues(relayValues, startRelay, endRelay);
+                }
+                else if(slaveID == 2){
+                  startRelay = SLAVE_2_START_RELAY;
+                  endRelay = SLAVE_2_END_RELAY;
+                  resetRelayValues(relayValues, startRelay, endRelay);
+                }    
+              }
+            } else{
+              int startRelay = 0;
+              int endRelay = 0;
+              int slaveID = 0;
+              RS485::parseData(receivedData, slaveID, buttonValues);
+
+              // Gọi hàm cập nhật relayValues sau khi parse xong
+                if(slaveID == 1){
+                  startRelay = SLAVE_1_START_RELAY;
+                  endRelay = SLAVE_1_END_RELAY;
+                }
+                else if(slaveID == 2){
+                  startRelay = SLAVE_2_START_RELAY;
+                  endRelay = SLAVE_2_END_RELAY;
+                }
+
+              updateRelayValues(buttonValues, relayValues, startRelay, endRelay);
+            }
+
+            xSemaphoreGive(xMutex);  // Giải phóng Mutex sau khi điều khiển relay
+        }
+        
+        vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
+    }
+}
+
+void RS485Task_s2(void* pvParameters) {
+    while (1) {
+
+        String receivedData = rs485_s2.receive();  // Nhận dữ liệu từ RS485
         // Serial.println("receivedData: "+ receivedData);
         
         // Kiểm tra dữ liệu nhận được và điều khiển relay
@@ -166,9 +225,9 @@ void resetButtonTask(void* pvParameters) {
                 // Reset tất cả giá trị về 0
                 Serial.println("reset button is pressed");
                 restFlag = true;
-                rs485.send(RESET_VALUE_TX);
+                rs485_s1.send(RESET_VALUE_TX);
                 vTaskDelay(1000 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
-                rs485.send(RESET_VALUE_TX);
+                rs485_s1.send(RESET_VALUE_TX);
                 
 
                 // vTaskDelay(100 / portTICK_PERIOD_MS);  // Đợi 100ms trước khi đọc lại
@@ -184,8 +243,8 @@ void resetButtonTask(void* pvParameters) {
 
 void setup() {
     Serial.begin(19200); // Serial mặc định cho máy tính
-    rs485.begin();       // Khởi tạo RS485
-
+    rs485_s1.begin();       // Khởi tạo RS485
+    // rs485_s2.begin();       // Khởi tạo RS485
     // Khởi tạo relay
     Serial.println("Relay initialized");
     setupRelays();
@@ -216,14 +275,24 @@ void setup() {
 
     // Tạo task RS485
     xTaskCreate(
-        RS485Task,               // Hàm task
-        "RS485Task",             // Tên task
+        RS485Task_s1,               // Hàm task
+        "RS485Task_s1",             // Tên task
         256,                     // Kích thước stack (có thể điều chỉnh)
         NULL,                    // Tham số truyền vào task
         1,                       // Độ ưu tiên của task
         NULL                     // Handle của task (không cần ở đây)
     );
-  
+
+    // Tạo task RS485
+    // xTaskCreate(
+    //     RS485Task_s2,               // Hàm task
+    //     "RS485Task_s2",             // Tên task
+    //     256,                     // Kích thước stack (có thể điều chỉnh)
+    //     NULL,                    // Tham số truyền vào task
+    //     0,                       // Độ ưu tiên của task
+    //     NULL                     // Handle của task (không cần ở đây)
+    // );
+
     // Tạo task resetButton
     xTaskCreate(
         resetButtonTask,               // Hàm task
