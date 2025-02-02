@@ -10,7 +10,7 @@ RS485::RS485(int rx, int tx, int baud) : rs485Serial(rx, tx) {
 // Khởi tạo RS485
 void RS485::begin() {
     rs485Serial.begin(baudRate);
-    //Serial.println("RS485 Initialized");
+    Serial.println("RS485 Initialized");
 }
 
 // Gửi dữ liệu qua RS485
@@ -26,39 +26,44 @@ String RS485::receive() {
     if (rs485Serial.available()) {
         data = rs485Serial.readString();
 
-        // Serial.println("Received via RS485: " + data);
+        Serial.println("Received via RS485: " + data);
     }
     return data;
 }
 
-void RS485::parseData(String data, int* buttonValues) {
-    // Tách tiền tố S1
-    String prefix = data.substring(0, data.indexOf("-")); // Lấy phần "S1"
-    // Serial.println("Prefix: " + prefix);                 // Debug để in tiền tố
+void RS485::parseData(String data, int &slaveID, int* buttonValues) {
+  // Kiểm tra chuỗi có bắt đầu bằng "S" không
+    if (data.length() < 2 || data[0] != 'S') {
+        // Serial.println("Dữ liệu không hợp lệ");
+        return;
+    }
 
-    // Bắt đầu xử lý từ sau tiền tố
-    int startIndex = data.indexOf("-") + 1; // Vị trí bắt đầu của "B01"
-    while (startIndex > 0 && startIndex < data.length()) {
-        // Tìm vị trí kết thúc của cặp "BXX:Value"
-        int endIndex = data.indexOf("-", startIndex);
-        if (endIndex == -1) {
-            endIndex = data.length(); // Nếu không tìm thấy "-", lấy đến cuối chuỗi
+    // Lấy Slave ID
+    slaveID = data.substring(1, 2).toInt();
+    // Serial.println("Slave ID: " + String(slaveId));
+
+    // Xử lý các button và giá trị
+    int startIndex = 2; // Bỏ qua "S0"
+    while (startIndex < data.length()) {
+        if (data[startIndex] == 'B') {
+            // Lấy chỉ số nút (XX)
+            int buttonIndex = data.substring(startIndex + 1, startIndex + 3).toInt() - 1;
+
+            // Lấy giá trị nút (V)
+            int value = data[startIndex + 3] - '0'; // Chuyển ký tự số sang số nguyên
+
+            // Lưu giá trị vào mảng nếu hợp lệ
+            if (buttonIndex >= 0 && buttonIndex < NUM_BUTTONS) {
+                buttonValues[buttonIndex] = value;
+            } else {
+                // Serial.println("Button index không hợp lệ: " + String(buttonIndex));
+            }
+
+            // Tiến tới mục tiếp theo
+            startIndex += 4; // "BXXV" có 4 ký tự
+        } else {
+            // Serial.println("Dữ liệu không hợp lệ tại: " + String(startIndex));
+            break;
         }
-
-        // Tách cặp "BXX:Value"
-        String pair = data.substring(startIndex, endIndex);
-
-        // Tách số thứ tự button "BXX" và giá trị sau ":"
-        int colonIndex = pair.indexOf(":");
-        int buttonIndex = pair.substring(1, colonIndex).toInt() - 1; // Lấy số thứ tự (XX) và chuyển về chỉ số mảng
-        int value = pair.substring(colonIndex + 1).toInt();          // Lấy giá trị sau dấu ":"
-
-        // Lưu giá trị vào mảng
-        if (buttonIndex >= 0 && buttonIndex < NUM_BUTTONS) {
-            buttonValues[buttonIndex] = value;
-        }
-
-        // Tiến đến phần tiếp theo
-        startIndex = data.indexOf("-", endIndex) + 1;
     }
 }

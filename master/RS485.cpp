@@ -29,19 +29,34 @@ String RS485::receive() {
 
 // Phân tích dữ liệu nhận được
 void RS485::parseData(String data, int* buttonValues) {
-    String prefix = data.substring(0, 2);  // Lấy phần "S1" hoặc "S2"
+    // Kiểm tra tiền tố và bỏ qua nếu cần
+    if (data.length() < 2 || data[0] != 'S') {
+        Serial.println("Dữ liệu không hợp lệ");
+        return;
+    }
+    String prefix = data.substring(0, 2); // Tiền tố (vd: "S0")
 
-    int startIndex = data.indexOf("N");
-    int endIndex = data.indexOf("-", startIndex);
+    // Bắt đầu xử lý từ sau tiền tố (bỏ qua "S0")
+    int startIndex = 2; // Bỏ qua tiền tố
+    while (startIndex < data.length()) {
+        // Tách "BXX" và giá trị
+        if (data[startIndex] == 'B') {
+            // Lấy số thứ tự của button (XX)
+            int buttonIndex = data.substring(startIndex + 1, startIndex + 3).toInt() - 1;
 
-    for (int i = 0; i < NUM_BUTTONS; i++) {
-        String pair = data.substring(startIndex, endIndex);
-        int colonIndex = pair.indexOf(":");
-        int value = pair.substring(colonIndex + 1).toInt();
+            // Lấy giá trị (sau "BXX")
+            int value = data[startIndex + 3] - '0'; // Chuyển ký tự số thành số nguyên
 
-        buttonValues[i] = value;
+            // Lưu giá trị vào mảng nếu hợp lệ
+            if (buttonIndex >= 0 && buttonIndex < NUM_BUTTONS) {
+                buttonValues[buttonIndex] = value;
+            }
 
-        startIndex = data.indexOf("N", startIndex + 1);
-        endIndex = data.indexOf("-", startIndex);
+            // Tiến đến phần tiếp theo
+            startIndex += 4; // Mỗi mục có dạng "BXXV" (4 ký tự)
+        } else {
+            Serial.println("Dữ liệu không hợp lệ tại: " + String(startIndex));
+            break;
+        }
     }
 }
